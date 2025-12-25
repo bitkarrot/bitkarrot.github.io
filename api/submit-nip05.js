@@ -3,9 +3,11 @@
  * 
  * Environment variables required (set in Vercel dashboard):
  * - GITHUB_TOKEN: Personal access token with repo scope
- * - GITHUB_OWNER: Repository owner (e.g., "bitkarrot")
- * - GITHUB_REPO: Repository name (e.g., "bitkarrot.github.io")
  */
+
+// Repository configuration (hardcoded since these are not secrets)
+const GITHUB_OWNER = 'bitkarrot';
+const GITHUB_REPO = 'bitkarrot.github.io';
 
 const BECH32_ALPHABET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
 
@@ -118,9 +120,15 @@ export default async function handler(req, res) {
     const username = validateUsername(rawUsername);
     const pubkey = convertToHex(rawPubkey);
 
+    // Check for GitHub token
+    if (!process.env.GITHUB_TOKEN) {
+      console.error('GITHUB_TOKEN environment variable is not set');
+      throw new Error('Server configuration error');
+    }
+
     // Trigger GitHub repository_dispatch event
     const response = await fetch(
-      `https://api.github.com/repos/${process.env.GITHUB_OWNER}/${process.env.GITHUB_REPO}/dispatches`,
+      `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/dispatches`,
       {
         method: 'POST',
         headers: {
@@ -142,12 +150,12 @@ export default async function handler(req, res) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('GitHub API error:', response.status, errorText);
-      throw new Error('Failed to trigger workflow');
+      throw new Error(`GitHub API error: ${response.status}`);
     }
 
     return res.status(200).json({
       success: true,
-      message: `Request submitted! A pull request will be created for ${username}@${process.env.GITHUB_OWNER}.github.io`,
+      message: `Request submitted! A pull request will be created for ${username}@${GITHUB_OWNER}.github.io`,
       username,
       pubkey,
     });
