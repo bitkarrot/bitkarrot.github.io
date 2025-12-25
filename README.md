@@ -1,10 +1,10 @@
-# NIP-05 Identifier Service
+# NIP-05 Automated PR Service
 
-This repository hosts a NIP-05 identifier service for Nostr users at `bitkarrot.github.io`.
+Automates NIP-05 identifier registration via pull requests. Users submit their Nostr pubkey through a web form, and the system automatically creates a PR to add them to the `nostr.json` file.
 
 ## For Users
 
-Visit [add-nip05.html](https://bitkarrot.github.io/add-nip05.html) to register your NIP-05 identifier.
+Visit the registration form to request your NIP-05 identifier. Once your PR is approved and merged, your identifier will be active.
 
 ## Architecture
 
@@ -32,14 +32,23 @@ Visit [add-nip05.html](https://bitkarrot.github.io/add-nip05.html) to register y
 
 1. Go to [GitHub Settings > Developer settings > Personal access tokens > Fine-grained tokens](https://github.com/settings/tokens?type=beta)
 2. Create a new token with:
-   - **Repository access**: Only select this repository (`bitkarrot.github.io`)
+   - **Repository access**: Only select this repository
    - **Permissions**:
-     - Contents: Read and write
-     - Pull requests: Read and write
-     - Metadata: Read-only
+     - **Actions**: Read and write (required to trigger `repository_dispatch`)
+     - **Contents**: Read and write
+     - **Metadata**: Read-only (auto-granted)
+     - **Pull requests**: Read and write
 3. Copy the token (starts with `github_pat_`)
 
-### 2. Deploy to Vercel
+### 2. Enable GitHub Actions Workflow Permissions
+
+1. Go to your repository's **Settings** → **Actions** → **General**
+2. Scroll to **"Workflow permissions"**
+3. Select **"Read and write permissions"**
+4. Check **"Allow GitHub Actions to create and approve pull requests"**
+5. Click **Save**
+
+### 3. Deploy to Vercel
 
 1. Install Vercel CLI:
    ```bash
@@ -67,13 +76,16 @@ Visit [add-nip05.html](https://bitkarrot.github.io/add-nip05.html) to register y
    vercel --prod
    ```
 
-### 3. Configure Environment Variables
+### 4. Configure Your Domain (Optional)
 
-In the Vercel dashboard, ensure these environment variables are set:
-- `GITHUB_TOKEN` - Your GitHub Personal Access Token
-- `GITHUB_OWNER` - `bitkarrot` (already in vercel.json)
-- `GITHUB_REPO` - `bitkarrot.github.io` (already in vercel.json)
-- `ALLOWED_ORIGIN` - (optional) Restrict CORS to your domain
+Add a custom domain in the Vercel dashboard under **Settings** → **Domains**.
+
+### 5. Update Repository References
+
+If you fork or rename this repository, update these files:
+- `api/submit-nip05.js` - Update `GITHUB_OWNER` and `GITHUB_REPO` constants
+- `add-nip05.html` - Update the PR link URL
+- `.github/workflows/add-nip05.yml` - Update the NIP-05 domain in the PR body
 
 ## Files
 
@@ -95,7 +107,11 @@ In the Vercel dashboard, ensure these environment variables are set:
 Once registered, users can set their NIP-05 identifier in their Nostr profile as:
 
 ```
-username@bitkarrot.github.io
+username@yourdomain.com
 ```
 
-For the root identifier `_`, it displays as just `bitkarrot.github.io`.
+For the root identifier `_`, it displays as just the domain.
+
+## License
+
+MIT
