@@ -5,54 +5,11 @@
  * - GITHUB_TOKEN: Personal access token with repo scope
  */
 
+import { nip19 } from 'nostr-tools';
+
 // Repository configuration (hardcoded since these are not secrets)
 const GITHUB_OWNER = 'bitkarrot';
 const GITHUB_REPO = 'bitkarrot.github.io';
-
-const BECH32_ALPHABET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
-
-function bech32Decode(str) {
-  str = str.toLowerCase();
-  const sepIndex = str.lastIndexOf('1');
-  if (sepIndex < 1) throw new Error('Invalid bech32 string');
-  
-  const hrp = str.slice(0, sepIndex);
-  const data = str.slice(sepIndex + 1);
-  
-  const ALPHABET_MAP = {};
-  for (let i = 0; i < BECH32_ALPHABET.length; i++) {
-    ALPHABET_MAP[BECH32_ALPHABET[i]] = i;
-  }
-  
-  const values = [];
-  for (const char of data) {
-    if (ALPHABET_MAP[char] === undefined) throw new Error('Invalid character');
-    values.push(ALPHABET_MAP[char]);
-  }
-  
-  // Remove checksum (last 6 characters)
-  const dataValues = values.slice(0, -6);
-  
-  // Convert 5-bit to 8-bit
-  let acc = 0;
-  let bits = 0;
-  const result = [];
-  
-  for (let i = 1; i < dataValues.length; i++) {
-    acc = (acc << 5) | dataValues[i];
-    bits += 5;
-    while (bits >= 8) {
-      bits -= 8;
-      result.push((acc >> bits) & 0xff);
-    }
-  }
-  
-  return { hrp, data: new Uint8Array(result) };
-}
-
-function bytesToHex(bytes) {
-  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
-}
 
 function isValidHex(str) {
   return /^[0-9a-fA-F]{64}$/.test(str);
@@ -66,9 +23,13 @@ function convertToHex(input) {
   }
   
   if (input.startsWith('npub1')) {
-    const decoded = bech32Decode(input);
-    if (decoded.hrp !== 'npub') throw new Error('Not an npub');
-    return bytesToHex(decoded.data);
+    try {
+      const decoded = nip19.decode(input);
+      if (decoded.type !== 'npub') throw new Error('Not an npub');
+      return decoded.data;
+    } catch (e) {
+      throw new Error('Invalid npub format: ' + e.message);
+    }
   }
   
   throw new Error('Invalid public key format');

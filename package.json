@@ -1,0 +1,9 @@
+{
+  "name": "nip05-service",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "nostr-tools": "^2.10.4"
+  }
+}
