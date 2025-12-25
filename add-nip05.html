@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add NIP-05 Identifier</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-purple-900 via-gray-900 to-black min-h-screen">
+    <div class="container mx-auto px-4 py-12 max-w-2xl">
+        <div class="bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-2xl p-8 border border-purple-500/20">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-white mb-2">Add Your NIP-05 Identifier</h1>
+                <p class="text-gray-400">Submit your Nostr pubkey to get a NIP-05 identifier at this domain</p>
+            </div>
+
+            <form id="nip05Form" class="space-y-6">
+                <div>
+                    <label for="username" class="block text-sm font-medium text-purple-300 mb-2">
+                        Username
+                    </label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        required
+                        pattern="[a-z0-9_\-\.]+"
+                        placeholder="yourname"
+                        class="w-full px-4 py-3 bg-gray-900/50 border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                    >
+                    <p class="mt-1 text-xs text-gray-500">Lowercase letters, numbers, hyphens, underscores, and dots only</p>
+                </div>
+
+                <div>
+                    <label for="pubkey" class="block text-sm font-medium text-purple-300 mb-2">
+                        Nostr Public Key (npub or hex)
+                    </label>
+                    <input 
+                        type="text" 
+                        id="pubkey" 
+                        name="pubkey" 
+                        required
+                        placeholder="npub1... or 64-character hex"
+                        class="w-full px-4 py-3 bg-gray-900/50 border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition font-mono text-sm"
+                    >
+                    <p class="mt-1 text-xs text-gray-500">Enter your npub (starts with npub1) or 64-character hex public key</p>
+                </div>
+
+                <div id="hexDisplay" class="hidden">
+                    <label class="block text-sm font-medium text-green-400 mb-2">
+                        Converted Hex Public Key
+                    </label>
+                    <div class="w-full px-4 py-3 bg-green-900/20 border border-green-500/30 rounded-lg text-green-300 font-mono text-sm break-all" id="hexOutput"></div>
+                </div>
+
+                <div id="errorMessage" class="hidden bg-red-900/30 border border-red-500/50 rounded-lg p-4 text-red-300 text-sm"></div>
+                <div id="successMessage" class="hidden bg-green-900/30 border border-green-500/50 rounded-lg p-4 text-green-300 text-sm"></div>
+
+                <button 
+                    type="submit" 
+                    id="submitBtn"
+                    class="w-full py-4 px-6 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold rounded-lg shadow-lg transform transition hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+                >
+                    Submit Request
+                </button>
+            </form>
+
+            <div class="mt-8 pt-6 border-t border-gray-700">
+                <h3 class="text-lg font-semibold text-white mb-3">How it works</h3>
+                <ol class="list-decimal list-inside space-y-2 text-gray-400 text-sm">
+                    <li>Enter your desired username and Nostr public key</li>
+                    <li>Submit the form to create a pull request</li>
+                    <li>Once approved and merged, your NIP-05 will be: <code class="text-purple-300">username@bitkarrot.github.io</code></li>
+                </ol>
+            </div>
+        </div>
+
+        <p class="text-center text-gray-500 text-sm mt-6">
+            Learn more about <a href="https://github.com/nostr-protocol/nips/blob/master/05.md" target="_blank" class="text-purple-400 hover:text-purple-300">NIP-05</a>
+        </p>
+    </div>
+
+    <script>
+        // Bech32 decoding for npub
+        const ALPHABET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+        const ALPHABET_MAP = {};
+        for (let i = 0; i < ALPHABET.length; i++) {
+            ALPHABET_MAP[ALPHABET[i]] = i;
+        }
+
+        function bech32Decode(str) {
+            str = str.toLowerCase();
+            const sepIndex = str.lastIndexOf('1');
+            if (sepIndex < 1) throw new Error('Invalid bech32 string');
+            
+            const hrp = str.slice(0, sepIndex);
+            const data = str.slice(sepIndex + 1);
+            
+            const values = [];
+            for (const char of data) {
+                if (ALPHABET_MAP[char] === undefined) throw new Error('Invalid character');
+                values.push(ALPHABET_MAP[char]);
+            }
+            
+            // Remove checksum (last 6 characters)
+            const dataValues = values.slice(0, -6);
+            
+            // Convert 5-bit to 8-bit
+            let acc = 0;
+            let bits = 0;
+            const result = [];
+            
+            for (let i = 1; i < dataValues.length; i++) { // Skip first byte (version)
+                acc = (acc << 5) | dataValues[i];
+                bits += 5;
+                while (bits >= 8) {
+                    bits -= 8;
+                    result.push((acc >> bits) & 0xff);
+                }
+            }
+            
+            return { hrp, data: new Uint8Array(result) };
+        }
+
+        function bytesToHex(bytes) {
+            return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        function isValidHex(str) {
+            return /^[0-9a-fA-F]{64}$/.test(str);
+        }
+
+        function convertToHex(input) {
+            input = input.trim();
+            
+            if (isValidHex(input)) {
+                return input.toLowerCase();
+            }
+            
+            if (input.startsWith('npub1')) {
+                try {
+                    const decoded = bech32Decode(input);
+                    if (decoded.hrp !== 'npub') throw new Error('Not an npub');
+                    return bytesToHex(decoded.data);
+                } catch (e) {
+                    throw new Error('Invalid npub format: ' + e.message);
+                }
+            }
+            
+            throw new Error('Invalid public key. Must be npub1... or 64-character hex');
+        }
+
+        // Live conversion display
+        const pubkeyInput = document.getElementById('pubkey');
+        const hexDisplay = document.getElementById('hexDisplay');
+        const hexOutput = document.getElementById('hexOutput');
+
+        pubkeyInput.addEventListener('input', () => {
+            const value = pubkeyInput.value.trim();
+            if (!value) {
+                hexDisplay.classList.add('hidden');
+                return;
+            }
+            
+            try {
+                const hex = convertToHex(value);
+                hexOutput.textContent = hex;
+                hexDisplay.classList.remove('hidden');
+                pubkeyInput.classList.remove('border-red-500');
+                pubkeyInput.classList.add('border-green-500');
+            } catch (e) {
+                hexDisplay.classList.add('hidden');
+                if (value.length > 10) {
+                    pubkeyInput.classList.add('border-red-500');
+                    pubkeyInput.classList.remove('border-green-500');
+                }
+            }
+        });
+
+        // Form submission
+        const form = document.getElementById('nip05Form');
+        const errorMessage = document.getElementById('errorMessage');
+        const successMessage = document.getElementById('successMessage');
+        const submitBtn = document.getElementById('submitBtn');
+
+        // API URL - UPDATE THIS after deploying to Vercel
+        const WORKER_URL = '/api/submit-nip05';
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            errorMessage.classList.add('hidden');
+            successMessage.classList.add('hidden');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
+
+            try {
+                const username = document.getElementById('username').value.trim().toLowerCase();
+                const pubkeyRaw = document.getElementById('pubkey').value.trim();
+
+                // Validate username
+                if (!/^[a-z0-9_\-\.]+$/.test(username)) {
+                    throw new Error('Username can only contain lowercase letters, numbers, hyphens, underscores, and dots');
+                }
+
+                // Validate pubkey format (will be converted server-side too)
+                const hexPubkey = convertToHex(pubkeyRaw);
+
+                // Submit to Cloudflare Worker
+                const response = await fetch(WORKER_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username,
+                        pubkey: pubkeyRaw,
+                    }),
+                });
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to submit request');
+                }
+
+                successMessage.innerHTML = `
+                    <strong>Success!</strong> ${result.message}<br><br>
+                    A pull request will be created automatically. Check the 
+                    <a href="https://github.com/bitkarrot/bitkarrot.github.io/pulls" target="_blank" class="underline text-green-200 hover:text-white">
+                        Pull Requests page
+                    </a> in a few moments.<br><br>
+                    Once merged, your NIP-05 identifier will be: <code class="bg-green-800/50 px-2 py-1 rounded">${username}@bitkarrot.github.io</code>
+                `;
+                successMessage.classList.remove('hidden');
+                form.reset();
+                hexDisplay.classList.add('hidden');
+
+            } catch (error) {
+                errorMessage.textContent = error.message;
+                errorMessage.classList.remove('hidden');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Request';
+            }
+        });
+    </script>
+</body>
+</html>
