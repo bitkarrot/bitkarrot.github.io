@@ -9,7 +9,7 @@ import { nip19 } from 'nostr-tools';
 
 // Repository configuration (hardcoded since these are not secrets)
 const GITHUB_OWNER = 'bitkarrot';
-const GITHUB_REPO = 'bitkarrot.github.io';
+const GITHUB_REPO = 'nip05-service';
 
 function isValidHex(str) {
   return /^[0-9a-fA-F]{64}$/.test(str);

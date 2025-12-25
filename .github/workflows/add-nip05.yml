@@ -67,7 +67,6 @@ jobs:
             
             - **Username:** ${{ steps.validate.outputs.username }}
             - **Hex Public Key:** `${{ steps.validate.outputs.pubkey }}`
-            - **NIP-05 Identifier:** `${{ steps.validate.outputs.username }}@bitkarrot.github.io`
             
             This PR was automatically generated via the NIP-05 registration form.
           branch: "add-nip05-${{ steps.validate.outputs.username }}"
